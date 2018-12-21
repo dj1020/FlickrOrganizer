@@ -20,14 +20,30 @@ final class OrganizerTest extends TestCase
     /**
      * @test
      */
-    public function it_should_()
+    public function it_should_read_config_file_and_set_json_file_directory()
     {
         // Arrange
+        $configPath = __DIR__ . '/data/config.json';
 
         // Act
-        $result = (new Organizer())->execute();
+        $actual = (new Organizer())->setConfigPath($configPath);
 
         // Assert
-        $this->assertNull($result);
+        $this->assertEquals($configPath, $actual->getConfigPath());
+    }
+
+    /**
+     * @test
+     */
+    public function it_should_copy_files_to_folders()
+    {
+        // Arrange
+        $configPath = __DIR__ . '/data/config.json';
+
+        // Act
+        $actual = (new Organizer())->setConfigPath($configPath)->execute();
+
+        // Assert
+
     }
 }

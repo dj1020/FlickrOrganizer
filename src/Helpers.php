@@ -12,7 +12,7 @@ class Dumper
     /**
      * Dump a value with elegance.
      *
-     * @param  mixed  $value
+     * @param  mixed $value
      * @return void
      */
     public function dump($value)
@@ -26,7 +26,7 @@ class Dumper
     }
 }
 
-if (! function_exists('dd')) {
+if ( ! function_exists('dd')) {
     /**
      * Dump the passed variables and end the script.
      *
@@ -40,5 +40,12 @@ if (! function_exists('dd')) {
         }, func_get_args());
 
         die(1);
+    }
+}
+if ( ! function_exists('dumpCsv')) {
+    function dumpCsv(array $array, $pathToStore)
+    {
+        $output = print_r($array, true);
+        file_put_contents($pathToStore . '-' . time() . '.txt', $output);
     }
 }
