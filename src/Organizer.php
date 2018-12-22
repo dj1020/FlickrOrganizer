@@ -11,26 +11,27 @@ class Organizer
     private $albums;
     private $mediaAlbumMapping = [];
     private $mediaFiles;
-    private $isMove            = false;
+    private $options           = [
+        'dryrun'  => false,     // True, dry run 不會真的建目錄、複製/移動檔案
+        'move'    => false,    // 移動檔案，不是 copy
+        'silence' => false,    // 是否顯示過程資訊
+    ];
+
+    private $createdFolders = [];
 
     public function execute()
     {
         $this->initAlbums();
         $this->initMediaFiles($this->config->mediaDir);
 
-        // Todo-Ken: mock/debug only
-//        dd(
-//            count($this->mediaFiles),
-//            array_sum(array_pluck($this->albums, 'photo_count'))
-//        );
-
         foreach ($this->mediaFiles as $file) {
             $albumNames = $this->getMediaAlbumNames($file) ?: ['Flickr_Others'];
-            if ($this->isMove) {
-                $this->moveMediaToAlbumFolder($file, $albumNames);
+            if ($this->options['move']) {
+                $this->mediaToAlbumFolder('move', $file, $albumNames);
             } else {
-                $this->copyMediaToAlbumFolder($file, $albumNames);
+                $this->mediaToAlbumFolder('copy', $file, $albumNames);
             }
+            ob_flush(); // 輸出 buffer 的 log 結果
         }
     }
 
@@ -164,7 +165,7 @@ class Organizer
      */
     private function getMediaAlbumNames($file)
     {
-        $filename = pathinfo($file, PATHINFO_BASENAME);
+        $filename = $this->baseName($file);
         $possibleIds = array_values(array_filter(explode('_', $filename), function ($token) {
             return is_numeric($token);
         }));
@@ -190,24 +191,36 @@ class Organizer
         return $title;
     }
 
-    private function moveMediaToAlbumFolder($file, array $albumNames)
-    {
-    }
-
-    private function copyMediaToAlbumFolder($file, array $albumNames)
+    private function mediaToAlbumFolder($operation, $file, array $albumNames)
     {
         foreach ($albumNames as $albumName) {
             $folderPath = $this->createAlbumFolder($albumName);
 
-            die();
-            // Todo-Ken: TBC
-            // $success = copy($file, $folderPath);
+            $success = $this->operateFile($operation, $file, $folderPath);
+            if ( ! $success) {
+                throw new \RuntimeException(
+                    sprintf("Failed to %s %s into folder %s\n", $operation, $file, $folderPath)
+                );
+            }
+            $this->echo("%s %s into %s\n", ucfirst($operation), $file, $folderPath);
+        }
+    }
 
-            // Todo-Ken: Do some success/error log here
-
+    private function operateFile($operation, $file, string $folderPath)
+    {
+        if ($this->options['dryrun']) {
+            return true;
         }
 
-        // Todo-Ken: Do some error log here
+        $destination = rtrim($folderPath, '/') . '/' . $this->baseName($file);
+        switch ($operation) {
+            case 'copy':
+                return copy($file, $destination);
+            case 'move':
+                return rename($file, $destination);
+            default:
+                throw new \RuntimeException('Please specify which operation to execute');
+        }
     }
 
     /**
@@ -216,7 +229,7 @@ class Organizer
      */
     public function setIsMove(bool $isMove)
     {
-        $this->isMove = $isMove;
+        $this->options['move'] = $isMove;
 
         return $this;
     }
@@ -226,19 +239,31 @@ class Organizer
         $folderPath = rtrim($this->config->outputDir, '/') . '/' . $albumName;
 
         if ($this->isValidDirectory($folderPath)) {
+            if ( ! in_array($folderPath, $this->createdFolders, true)) {
+                $this->echo("Folder %s exists, won't create new one\n", $folderPath);
+                $this->createdFolders[] = $folderPath;
+            }
+
             return $folderPath;
         }
 
-        $success = mkdir($folderPath, 0777, true);
-        if ( ! $success) {
-            throw new \RuntimeException(sprintf('Failed to create folder %s', $folderPath));
-        };
+        if ( ! $this->options['dryrun']) {
+            $success = mkdir($folderPath, 0777, true);
+            if ( ! $success) {
+                throw new \RuntimeException(sprintf('Failed to create folder %s', $folderPath));
+            };
+        }
+
+        $this->echo("Created folder %s\n", $folderPath);
 
         return $folderPath;
     }
 
-    /*
+    /**
      * ref: https://www.codezuzu.com/2015/03/how-to-check-if-directory-exists-in-php/
+     *
+     * @param $path
+     * @return bool
      */
     public function isValidDirectory($path)
     {
@@ -247,10 +272,20 @@ class Organizer
 
         // File Exists and is a Directory
         // Since everything in Unix is a file, including directories. So we should check both.
-        if ((file_exists($path) === true) && (is_dir($path) === true)) {
-            return true;
+        return (file_exists($path) === true) && (is_dir($path) === true);
+    }
+
+    private function echo(string $pattern, ...$params)
+    {
+        if ($this->options['silence']) {
+            return;
         }
 
-        return false;
+        echo sprintf($pattern, ...$params);
+    }
+
+    private function baseName($file)
+    {
+        return pathinfo($file, PATHINFO_BASENAME);
     }
 }
