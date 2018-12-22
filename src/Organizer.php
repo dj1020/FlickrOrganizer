@@ -96,6 +96,7 @@ class Organizer
 
     private function listMediaFiles($dir)
     {
+        $dir = rtrim($dir, '/');
         foreach (array_filter(glob($dir . '/*'), 'is_dir') as $dir) {
             $this->listMediaFiles($dir);
         }
@@ -182,13 +183,17 @@ class Organizer
     private function albumTitles(array $albumIds)
     {
         return array_map(function ($albumId) {
-            return $this->decodeTitle($this->albums[$albumId]->title);
+            return $this->cleanTitleAsFolderName($this->albums[$albumId]->title);
         }, $albumIds);
     }
 
-    private function decodeTitle($title)
+    /**
+     * @param $title
+     * @return mixed
+     */
+    private function cleanTitleAsFolderName($title)
     {
-        return $title;
+        return str_replace('/', '_', $title);
     }
 
     private function mediaToAlbumFolder($operation, $file, array $albumNames)
