@@ -193,7 +193,11 @@ class Organizer
      */
     private function cleanTitleAsFolderName($title)
     {
-        return str_replace('/', '_', $title);
+        $dangerous_characters = array('"', "'", "&", "/", "\\", "?", "#");
+
+        $title = str_replace($dangerous_characters, '_', $title);
+
+        return $title;
     }
 
     private function mediaToAlbumFolder($operation, $file, array $albumNames)
@@ -218,6 +222,7 @@ class Organizer
         }
 
         $destination = rtrim($folderPath, '/') . '/' . $this->baseName($file);
+        $destination = escapeshellcmd($destination);
         switch ($operation) {
             case 'copy':
                 return copy($file, $destination);

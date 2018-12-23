@@ -44,6 +44,6 @@ final class OrganizerTest extends TestCase
         $actual = (new Organizer())->setConfigPath($configPath)->execute();
 
         // Assert
-
+        $this->assertTrue(true);
     }
 }
